@@ -241,3 +241,72 @@ FROM (
 ) AS ActividadesPorCliente
 ORDER BY Ranking;
 -- =============================================
+
+-- =============================================
+-- 13. Procedimiento almacenado – Alimentos más usados en planes de alimentación
+CREATE PROCEDURE sp_AlimentosMasUsados
+AS
+BEGIN
+    SELECT 
+        a.nombre AS Alimento,
+        COUNT(dpa.idAlimento) AS VecesUsado,
+        SUM(dpa.cantidad) AS CantidadTotalUsada
+    FROM Detalle_Plan_Alimento dpa
+    INNER JOIN Alimentos a ON dpa.idAlimento = a.idAlimento
+    GROUP BY a.nombre
+    ORDER BY VecesUsado DESC;
+END;
+GO
+
+-- Ejecutar el procedimiento
+EXEC sp_AlimentosMasUsados;
+
+-- =============================================
+
+-- =============================================
+-- 14. Función escalar - Nivel de condición física estimado
+CREATE FUNCTION fn_NivelCondicionFisica(@idCliente INT)
+RETURNS VARCHAR(50)
+AS
+BEGIN
+    DECLARE @imc FLOAT;
+    DECLARE @nivel VARCHAR(50);
+
+    SELECT @imc = peso / (altura * altura)
+    FROM Cliente
+    WHERE idCliente = @idCliente;
+
+    SET @nivel = CASE
+        WHEN @imc < 18.5 THEN 'Débil'
+        WHEN @imc BETWEEN 18.5 AND 24.9 THEN 'Saludable'
+        WHEN @imc BETWEEN 25 AND 29.9 THEN 'Regular'
+        ELSE 'Necesita Mejora'
+    END;
+
+    RETURN @nivel;
+END;
+GO
+
+-- Usar la función
+SELECT 
+    idCliente,
+    nombres,
+    apellidos,
+    dbo.fn_NivelCondicionFisica(idCliente) AS NivelCondicion
+FROM Cliente;
+-- =============================================
+
+-- =============================================
+-- 15. Consulta con JOIN y agregados - Resumen de progreso por Cliente
+SELECT 
+    c.idCliente,
+    c.nombres + ' ' + c.apellidos AS Cliente,
+    COUNT(dre.idEjercicio) AS TotalEjerciciosRealizados,
+    SUM(e.calorias * dre.series) AS CaloriasTotalesEstimadas
+FROM Cliente c
+INNER JOIN Rutina r ON c.idCliente = r.idCliente
+INNER JOIN Detalle_Rutina_Ejercicio dre ON r.idRutina = dre.idRutina
+INNER JOIN Ejercicio e ON dre.idEjercicio = e.idEjercicio
+GROUP BY c.idCliente, c.nombres, c.apellidos
+ORDER BY CaloriasTotalesEstimadas DESC;
+-- =============================================
